@@ -35,12 +35,27 @@ input[type=color]{width:50px;height:38px;background:none;border:1px solid #333;b
 /* The dark gaps between LEDs, drawn over the whole panel like a real matrix.
    Pitch tracks font size so it reads as dot-matrix at any text height. */
 #sign.on.dots::after{content:'';position:absolute;inset:0;pointer-events:none;
-  background-image:radial-gradient(circle,#0000 34%,var(--bg) 40%);
+  background-image:radial-gradient(circle,#0000 37%,var(--bg) 41%);
   background-size:calc(var(--size) * 1dvh / 26) calc(var(--size) * 1dvh / 26)}
 .track{display:flex;width:max-content;will-change:transform;animation:scroll var(--dur) linear infinite,blink var(--bd) steps(1,end) infinite}
 #sign:not(.blink) .track{animation-name:scroll}
 .track span{font-family:Impact,'Arial Black',sans-serif;font-size:calc(var(--size) * 1dvh);line-height:1.15;white-space:nowrap;padding-right:.5em;color:#fff;
 text-shadow:0 0 2px #fff,0 0 8px var(--c),0 0 18px var(--c),0 0 36px var(--c),0 0 70px var(--c)}
+/* Dots mode drops the two widest glow layers. Those lit a broad field of dim
+   surrounding dots, which read as fuzz rather than as glow. */
+/* Doubled-up shadows at the SAME radius compound the colour's alpha, so the
+   dots read saturated without the halo spreading back out into fuzz. */
+#sign.dots .track span{text-shadow:0 0 1px #fff,
+  0 0 4px var(--c),0 0 4px var(--c),0 0 9px var(--c),0 0 9px var(--c)}
+/* Hidden until you tap the sign, then fades out again. z-index lifts it above
+   the dot-matrix ::after overlay, which would otherwise paint dots over it.
+   scaleX(var(--flip)) cancels the parent's mirror so the label is never
+   reversed. */
+#back{position:absolute;z-index:1;top:calc(14px + env(safe-area-inset-top));left:calc(14px + env(safe-area-inset-left));
+  padding:14px 22px;font:600 17px/1 system-ui,-apple-system,sans-serif;
+  border:0;border-radius:999px;background:#fff;color:#000;
+  opacity:0;pointer-events:none;transition:opacity .45s;transform:scaleX(var(--flip,1))}
+#sign.ui #back{opacity:.93;pointer-events:auto}
 @keyframes scroll{to{transform:translate3d(-50%,0,0)}}
 @keyframes blink{50%{opacity:.08}}
 @media (prefers-reduced-motion:reduce){.track{animation-play-state:paused}}
@@ -48,10 +63,10 @@ text-shadow:0 0 2px #fff,0 0 8px var(--c),0 0 18px var(--c),0 0 36px var(--c),0 
 </head>
 <body>
 
-<div id="sign"><div class="track" id="track"></div></div>
+<div id="sign"><div class="track" id="track"></div><button id="back" type="button">&lsaquo;&nbsp; Back</button></div>
 
 <h1>Beacon</h1>
-<p class="hint">Tap the sign to come back here.</p>
+<p class="hint">Tap the sign to reveal the back button.</p>
 
 <label for="text">Message</label>
 <textarea id="text" maxlength="300" placeholder="PLAY SOMETHING FILTHY">PLAY SOMETHING FILTHY</textarea>
@@ -136,20 +151,29 @@ document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState=='visible'&&sign.classList.contains('on'))lock();
 });
 
+let uiT;
+function showUI(){
+  sign.classList.add('ui');
+  clearTimeout(uiT);
+  uiT=setTimeout(()=>sign.classList.remove('ui'),3000);
+}
+
+function exit(){
+  sign.classList.remove('on','ui');
+  clearTimeout(uiT);
+  if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
+  wl?.release();wl=null;
+}
+
 $('go').onclick=async()=>{
   sign.classList.add('on');
   try{await document.documentElement.requestFullscreen()}catch(e){/* iOS Safari: CSS overlay carries it */}
   await document.fonts.ready;
-  apply();lock();
+  apply();lock();showUI();
 };
-sign.onclick=()=>{
-  sign.classList.remove('on');
-  if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
-  wl?.release();wl=null;
-};
-document.addEventListener('fullscreenchange',()=>{
-  if(!document.fullscreenElement)sign.classList.remove('on');
-});
+sign.onclick=showUI;
+$('back').onclick=e=>{e.stopPropagation();exit()};
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&sign.classList.contains('on'))exit()});
 
 apply();
 
