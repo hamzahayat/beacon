@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Rave Sign</title>
+<style>
+:root{--c:#ffb020;--bg:#000;--size:40;--dur:6s;--bd:.5s}
+*{box-sizing:border-box}
+body{margin:0;background:#111;color:#eee;font:16px/1.4 system-ui,-apple-system,sans-serif;padding:16px calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left))}
+h1{font-size:20px;margin:0 0 4px}
+p.hint{color:#889;font-size:13px;margin:0}
+label,legend{display:block;margin:18px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:#9aa}
+textarea{width:100%;height:5em;font:16px/1.3 system-ui,sans-serif;background:#000;color:#fff;border:1px solid #333;border-radius:8px;padding:8px}
+input[type=range]{width:100%;accent-color:var(--c)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sw{width:38px;height:38px;border-radius:50%;border:2px solid #333;padding:0}
+input[type=color]{width:50px;height:38px;background:none;border:1px solid #333;border-radius:8px;padding:2px}
+.tog{display:flex;align-items:center;gap:10px;margin-top:18px;font-size:14px;color:#eee}
+.tog input{width:22px;height:22px;accent-color:var(--c)}
+#go{width:100%;margin:26px 0 8px;padding:18px;font:700 22px/1 system-ui,sans-serif;letter-spacing:.12em;background:var(--c);color:#000;border:0;border-radius:12px}
+
+#sign{display:none}
+#sign.on{display:flex;align-items:center;position:fixed;inset:0;z-index:9999;width:100vw;height:100dvh;background:var(--bg);overflow:hidden;cursor:pointer}
+#sign.mirror{transform:scaleX(-1)}
+.track{display:flex;width:max-content;will-change:transform;animation:scroll var(--dur) linear infinite,blink var(--bd) steps(1,end) infinite}
+#sign:not(.blink) .track{animation-name:scroll}
+.track span{font-family:Impact,'Arial Black',sans-serif;font-size:calc(var(--size) * 1dvh);line-height:1.15;white-space:nowrap;padding-right:.5em;color:#fff;
+text-shadow:0 0 2px #fff,0 0 8px var(--c),0 0 18px var(--c),0 0 36px var(--c),0 0 70px var(--c)}
+@keyframes scroll{to{transform:translate3d(-50%,0,0)}}
+@keyframes blink{50%{opacity:.08}}
+@media (prefers-reduced-motion:reduce){.track{animation-play-state:paused}}
+</style>
+</head>
+<body>
+
+<div id="sign"><div class="track" id="track"></div></div>
+
+<h1>Rave Sign</h1>
+<p class="hint">Tap the sign to come back here.</p>
+
+<label for="text">Message</label>
+<textarea id="text" maxlength="300" placeholder="PLAY SOMETHING FILTHY">PLAY SOMETHING FILTHY</textarea>
+
+<label>Colour</label>
+<div class="row" id="sw"><input type="color" id="color" value="#ffb020"></div>
+
+<label for="bg">Background</label>
+<input type="color" id="bg" value="#000000">
+
+<label for="speed">Speed <output id="oSpeed"></output></label>
+<input type="range" id="speed" min="50" max="1200" step="10" value="320">
+
+<label for="size">Size <output id="oSize"></output></label>
+<input type="range" id="size" min="10" max="90" step="1" value="40">
+
+<div class="tog"><input type="checkbox" id="blink"><label for="blink" style="margin:0">Blink</label></div>
+<label for="rate">Blink rate <output id="oRate"></output> (capped at 3&nbsp;Hz)</label>
+<input type="range" id="rate" min="0.5" max="3" step="0.1" value="2">
+
+<div class="tog"><input type="checkbox" id="mirror"><label for="mirror" style="margin:0">Mirror (hold behind glass)</label></div>
+
+<button id="go">GO</button>
+
+<script>
+const $=id=>document.getElementById(id);
+const sign=$('sign'),track=$('track');
+const KEYS=['text','color','bg','speed','size','blink','rate','mirror'];
+const val=k=>$(k).type=='checkbox'?$(k).checked:$(k).value;
+
+try{const d=JSON.parse(localStorage.ravesign||'{}');
+  for(const k of KEYS) if(k in d) $(k)[$(k).type=='checkbox'?'checked':'value']=d[k];
+}catch(e){}
+
+// swatches
+for(const c of ['#ffb020','#ff2d2d','#39ff14','#00e5ff','#ffffff','#ff3ea5','#2e7bff','#b14bff']){
+  const b=document.createElement('button');
+  b.type='button';b.className='sw';b.style.background=c;b.setAttribute('aria-label','Colour '+c);
+  b.onclick=()=>{$('color').value=c;apply()};
+  $('sw').insertBefore(b,$('color'));
+}
+
+// Enough copies that one half always covers the viewport, so -50% never shows a gap.
+function build(){
+  const s=document.createElement('span');
+  s.textContent=($('text').value.replace(/\s+/g,' ').trim())||'HELLO';
+  track.replaceChildren(s);
+  const w=s.getBoundingClientRect().width||1;
+  const n=2*Math.max(1,Math.ceil(innerWidth/w));
+  track.replaceChildren(...Array.from({length:n},()=>s.cloneNode(true)));
+  sign.style.setProperty('--dur',(track.scrollWidth/2)/ +$('speed').value+'s');
+}
+
+function apply(){
+  const st=sign.style;
+  st.setProperty('--c',$('color').value);
+  st.setProperty('--bg',$('bg').value);
+  st.setProperty('--size',$('size').value);
+  st.setProperty('--bd',1/ +$('rate').value+'s');
+  document.documentElement.style.setProperty('--c',$('color').value);
+  sign.classList.toggle('blink',$('blink').checked);
+  sign.classList.toggle('mirror',$('mirror').checked);
+  $('oSpeed').textContent=$('speed').value+' px/s';
+  $('oSize').textContent=$('size').value+' vh';
+  $('oRate').textContent=(+$('rate').value).toFixed(1)+' Hz';
+  if(sign.classList.contains('on')) build();
+  localStorage.ravesign=JSON.stringify(Object.fromEntries(KEYS.map(k=>[k,val(k)])));
+}
+document.addEventListener('input',apply);
+addEventListener('resize',()=>sign.classList.contains('on')&&build());
+
+let wl=null;
+async function lock(){try{wl=await navigator.wakeLock.request('screen')}catch(e){/* file:// isn't secure, fine */}}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState=='visible'&&sign.classList.contains('on'))lock();
+});
+
+$('go').onclick=async()=>{
+  sign.classList.add('on');
+  try{await document.documentElement.requestFullscreen()}catch(e){/* iOS Safari: CSS overlay carries it */}
+  await document.fonts.ready;
+  apply();lock();
+};
+sign.onclick=()=>{
+  sign.classList.remove('on');
+  if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
+  wl?.release();wl=null;
+};
+document.addEventListener('fullscreenchange',()=>{
+  if(!document.fullscreenElement)sign.classList.remove('on');
+});
+
+apply();
+
+// The duration math is the only non-trivial bit. Run signCheck() in the console with the sign up.
+window.signCheck=()=>{
+  const want=(track.scrollWidth/2)/ +$('speed').value;
+  const got=parseFloat(getComputedStyle(track).animationDuration);
+  const ok=Math.abs(got-want)<0.01;
+  console.assert(ok,'marquee duration',{want,got});
+  return ok;
+};
+</script>
+<!-- ponytail: swatch row + colour picker only, no palette persistence beyond the single current colour. -->
+<!-- ponytail: text measured once per change, no font-metric caching; ceiling is ~300 chars which is the maxlength anyway. -->
+<!-- ponytail: no fullscreen on iOS Safari (API absent) - the fixed overlay covers it, Safari's own chrome stays unless added to Home Screen. -->
+</body>
+</html>
