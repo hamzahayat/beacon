@@ -6,7 +6,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Rave Sign</title>
+<meta name="apple-mobile-web-app-title" content="Beacon">
+<title>Beacon</title>
 <style>
 :root{--c:#ffb020;--bg:#000;--size:40;--dur:6s;--bd:.5s}
 *{box-sizing:border-box}
@@ -26,6 +27,11 @@ input[type=color]{width:50px;height:38px;background:none;border:1px solid #333;b
 #sign{display:none}
 #sign.on{display:flex;align-items:center;position:fixed;inset:0;z-index:9999;width:100vw;height:100dvh;background:var(--bg);overflow:hidden;cursor:pointer}
 #sign.mirror{transform:scaleX(-1)}
+/* The dark gaps between LEDs, drawn over the whole panel like a real matrix.
+   Pitch tracks font size so it reads as dot-matrix at any text height. */
+#sign.on.dots::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(circle,#0000 34%,var(--bg) 40%);
+  background-size:calc(var(--size) * 1dvh / 26) calc(var(--size) * 1dvh / 26)}
 .track{display:flex;width:max-content;will-change:transform;animation:scroll var(--dur) linear infinite,blink var(--bd) steps(1,end) infinite}
 #sign:not(.blink) .track{animation-name:scroll}
 .track span{font-family:Impact,'Arial Black',sans-serif;font-size:calc(var(--size) * 1dvh);line-height:1.15;white-space:nowrap;padding-right:.5em;color:#fff;
@@ -39,7 +45,7 @@ text-shadow:0 0 2px #fff,0 0 8px var(--c),0 0 18px var(--c),0 0 36px var(--c),0 
 
 <div id="sign"><div class="track" id="track"></div></div>
 
-<h1>Rave Sign</h1>
+<h1>Beacon</h1>
 <p class="hint">Tap the sign to come back here.</p>
 
 <label for="text">Message</label>
@@ -57,6 +63,8 @@ text-shadow:0 0 2px #fff,0 0 8px var(--c),0 0 18px var(--c),0 0 36px var(--c),0 
 <label for="size">Size <output id="oSize"></output></label>
 <input type="range" id="size" min="10" max="90" step="1" value="40">
 
+<div class="tog"><input type="checkbox" id="dots" checked><label for="dots" style="margin:0">Dot matrix (off&nbsp;= smooth neon)</label></div>
+
 <div class="tog"><input type="checkbox" id="blink"><label for="blink" style="margin:0">Blink</label></div>
 <label for="rate">Blink rate <output id="oRate"></output> (capped at 3&nbsp;Hz)</label>
 <input type="range" id="rate" min="0.5" max="3" step="0.1" value="2">
@@ -68,10 +76,10 @@ text-shadow:0 0 2px #fff,0 0 8px var(--c),0 0 18px var(--c),0 0 36px var(--c),0 
 <script>
 const $=id=>document.getElementById(id);
 const sign=$('sign'),track=$('track');
-const KEYS=['text','color','bg','speed','size','blink','rate','mirror'];
+const KEYS=['text','color','bg','speed','size','dots','blink','rate','mirror'];
 const val=k=>$(k).type=='checkbox'?$(k).checked:$(k).value;
 
-try{const d=JSON.parse(localStorage.ravesign||'{}');
+try{const d=JSON.parse(localStorage.beacon||'{}');
   for(const k of KEYS) if(k in d) $(k)[$(k).type=='checkbox'?'checked':'value']=d[k];
 }catch(e){}
 
@@ -101,13 +109,14 @@ function apply(){
   st.setProperty('--size',$('size').value);
   st.setProperty('--bd',1/ +$('rate').value+'s');
   document.documentElement.style.setProperty('--c',$('color').value);
+  sign.classList.toggle('dots',$('dots').checked);
   sign.classList.toggle('blink',$('blink').checked);
   sign.classList.toggle('mirror',$('mirror').checked);
   $('oSpeed').textContent=$('speed').value+' px/s';
   $('oSize').textContent=$('size').value+' vh';
   $('oRate').textContent=(+$('rate').value).toFixed(1)+' Hz';
   if(sign.classList.contains('on')) build();
-  localStorage.ravesign=JSON.stringify(Object.fromEntries(KEYS.map(k=>[k,val(k)])));
+  localStorage.beacon=JSON.stringify(Object.fromEntries(KEYS.map(k=>[k,val(k)])));
 }
 document.addEventListener('input',apply);
 addEventListener('resize',()=>sign.classList.contains('on')&&build());
