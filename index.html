@@ -25,8 +25,13 @@ input[type=color]{width:50px;height:38px;background:none;border:1px solid #333;b
 #go{width:100%;margin:26px 0 8px;padding:18px;font:700 22px/1 system-ui,sans-serif;letter-spacing:.12em;background:var(--c);color:#000;border:0;border-radius:12px}
 
 #sign{display:none}
-#sign.on{display:flex;align-items:center;position:fixed;inset:0;z-index:9999;width:100vw;height:100dvh;background:var(--bg);overflow:hidden;cursor:pointer}
-#sign.mirror{transform:scaleX(-1)}
+#sign.on{display:flex;align-items:center;position:fixed;inset:0;z-index:9999;width:100vw;height:100dvh;background:var(--bg);overflow:hidden;cursor:pointer;
+  transform:scaleX(var(--flip,1))}
+/* Rotated: swap the box dimensions and spin it, so the message runs along the
+   phone's long edge while you hold it upright. screen.orientation.lock() is a
+   no-op on iOS, so this is the only way to get a landscape sign there. */
+#sign.on.rot{inset:auto;top:50%;left:50%;width:100dvh;height:100vw;
+  transform:translate(-50%,-50%) rotate(90deg) scaleX(var(--flip,1))}
 /* The dark gaps between LEDs, drawn over the whole panel like a real matrix.
    Pitch tracks font size so it reads as dot-matrix at any text height. */
 #sign.on.dots::after{content:'';position:absolute;inset:0;pointer-events:none;
@@ -69,6 +74,8 @@ text-shadow:0 0 2px #fff,0 0 8px var(--c),0 0 18px var(--c),0 0 36px var(--c),0 
 <label for="rate">Blink rate <output id="oRate"></output> (capped at 3&nbsp;Hz)</label>
 <input type="range" id="rate" min="0.5" max="3" step="0.1" value="2">
 
+<div class="tog"><input type="checkbox" id="rot"><label for="rot" style="margin:0">Rotate 90&deg; (hold phone upright, sign runs sideways)</label></div>
+
 <div class="tog"><input type="checkbox" id="mirror"><label for="mirror" style="margin:0">Mirror (hold behind glass)</label></div>
 
 <button id="go">GO</button>
@@ -76,7 +83,7 @@ text-shadow:0 0 2px #fff,0 0 8px var(--c),0 0 18px var(--c),0 0 36px var(--c),0 
 <script>
 const $=id=>document.getElementById(id);
 const sign=$('sign'),track=$('track');
-const KEYS=['text','color','bg','speed','size','dots','blink','rate','mirror'];
+const KEYS=['text','color','bg','speed','size','dots','blink','rate','rot','mirror'];
 const val=k=>$(k).type=='checkbox'?$(k).checked:$(k).value;
 
 try{const d=JSON.parse(localStorage.beacon||'{}');
@@ -97,7 +104,8 @@ function build(){
   s.textContent=($('text').value.replace(/\s+/g,' ').trim())||'HELLO';
   track.replaceChildren(s);
   const w=s.getBoundingClientRect().width||1;
-  const n=2*Math.max(1,Math.ceil(innerWidth/w));
+  // Measure the sign, not the window: when rotated its width is the viewport height.
+  const n=2*Math.max(1,Math.ceil((sign.clientWidth||innerWidth)/w));
   track.replaceChildren(...Array.from({length:n},()=>s.cloneNode(true)));
   sign.style.setProperty('--dur',(track.scrollWidth/2)/ +$('speed').value+'s');
 }
@@ -111,7 +119,8 @@ function apply(){
   document.documentElement.style.setProperty('--c',$('color').value);
   sign.classList.toggle('dots',$('dots').checked);
   sign.classList.toggle('blink',$('blink').checked);
-  sign.classList.toggle('mirror',$('mirror').checked);
+  sign.classList.toggle('rot',$('rot').checked);
+  st.setProperty('--flip',$('mirror').checked?-1:1);
   $('oSpeed').textContent=$('speed').value+' px/s';
   $('oSize').textContent=$('size').value+' vh';
   $('oRate').textContent=(+$('rate').value).toFixed(1)+' Hz';
